@@ -258,6 +258,15 @@ void loop(){
   else if(pid_output_right < 0)pid_output_right = -405 - (1/(pid_output_right - 9)) * 5500;
 
   //Calculate the needed pulse time for the left and right stepper motor controllers
+
+
+
+  //S obzirom da izlaz PIDa predstavlja period jednog pulsa, mora se oduzeti od 400 (najvece moguce vrijednosti PIDa).
+  //Ako je npr PID mali zelimo da period jednog pulsa bude sto duzi (priblizno 400)
+  //Ako je PID velik zelimo da period pulsa bude sto kraci (priblizno 0)
+
+
+
   if(pid_output_left > 0)left_motor = 400 - pid_output_left;
   else if(pid_output_left < 0)left_motor = -400 - pid_output_left;
   else left_motor = 0;
@@ -286,6 +295,15 @@ void loop(){
 //Interrupt routine  TIMER2_COMPA_vect
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ISR(TIMER2_COMPA_vect){
+
+
+
+  //Ova rutina uzima izlaz iz PIDa koji u sustini vraca koliko dugo traje jedan puls kao broj puta koji ce se ova rutina izvrsiti prije sljedeceg pulsa.
+  //Prva dva kruga rutine su puls a nakon toga ne radi nista.
+  //throttle_left_motor_memory varijabla predstavlja izlaz PIDa i kada throttle_counter_left_motor je veci od nje uzima se nova vrijednost pida i sve ide ponovo.
+
+
+
   //Left motor pulse calculations
   throttle_counter_left_motor ++;                                           //Increase the throttle_counter_left_motor variable by 1 every time this routine is executed
   if(throttle_counter_left_motor > throttle_left_motor_memory){             //If the number of loops is larger then the throttle_left_motor_memory variable
