@@ -13,12 +13,12 @@
 #include <Wire.h>                                            //Include the Wire.h library so we can communicate with the gyro
 
 int gyro_address = 0x68;                                     //MPU-6050 I2C address (0x68 or 0x69)
-int acc_calibration_value = 1000;                            //Enter the accelerometer calibration value
+int acc_calibration_value = -629;                            //Enter the accelerometer calibration value
 
 //Various settings
-float pid_p_gain = 15;                                       //Gain setting for the P-controller (15)
-float pid_i_gain = 1.5;                                      //Gain setting for the I-controller (1.5)
-float pid_d_gain = 30;                                       //Gain setting for the D-controller (30)
+float pid_p_gain = 12;                                       //Gain setting for the P-controller (15)
+float pid_i_gain = 0;                                      //Gain setting for the I-controller (1.5)
+float pid_d_gain = 2;                                       //Gain setting for the D-controller (30)
 float turning_speed = 30;                                    //Turning speed (20)
 float max_target_speed = 150;                                //Max target speed (100)
 
@@ -235,11 +235,11 @@ void loop(){
     if(pid_output < max_target_speed)pid_setpoint += 0.005;                 //Slowly change the setpoint angle so the robot starts leaning backwards
   }   
 
-  if(!(received_byte & B00001100)){                                         //Slowly reduce the setpoint to zero if no foreward or backward command is given
+  // if(!(received_byte & B00001100)){                                         //Slowly reduce the setpoint to zero if no foreward or backward command is given
     if(pid_setpoint > 0.5)pid_setpoint -=0.05;                              //If the PID setpoint is larger then 0.5 reduce the setpoint with 0.05 every loop
     else if(pid_setpoint < -0.5)pid_setpoint +=0.05;                        //If the PID setpoint is smaller then -0.5 increase the setpoint with 0.05 every loop
     else pid_setpoint = 0;                                                  //If the PID setpoint is smaller then 0.5 or larger then -0.5 set the setpoint to 0
-  }
+  // }
   
   //The self balancing point is adjusted when there is not forward or backwards movement from the transmitter. This way the robot will always find it's balancing point
   if(pid_setpoint == 0){                                                    //If the setpoint is zero degrees
