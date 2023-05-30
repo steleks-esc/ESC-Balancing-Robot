@@ -13,12 +13,12 @@
 #include <Wire.h>                                            //Include the Wire.h library so we can communicate with the gyro
 
 int gyro_address = 0x68;                                     //MPU-6050 I2C address (0x68 or 0x69)
-int acc_calibration_value = -629;                            //Enter the accelerometer calibration value
+int acc_calibration_value = -645;                            //Enter the accelerometer calibration value
 
 //Various settings
-float pid_p_gain = 12;                                       //Gain setting for the P-controller (15)
+float pid_p_gain = 10;                                       //Gain setting for the P-controller (15)
 float pid_i_gain = 0;                                      //Gain setting for the I-controller (1.5)
-float pid_d_gain = 2;                                       //Gain setting for the D-controller (30)
+float pid_d_gain = 0;                                       //Gain setting for the D-controller (30)
 float turning_speed = 30;                                    //Turning speed (20)
 float max_target_speed = 150;                                //Max target speed (100)
 
@@ -279,8 +279,8 @@ void loop(){
   throttle_left_motor = left_motor;
   throttle_right_motor = right_motor;
 
-  Serial.print("throttle_counter_left_motor: ");
-  Serial.println(throttle_counter_left_motor);
+  Serial.println(angle_gyro);
+  // Serial.println(throttle_counter_left_motor);
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //Loop time timer
