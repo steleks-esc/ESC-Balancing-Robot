@@ -10,15 +10,18 @@
 //THE SOFTWARE.
 ///////////////////////////////////////////////////////////////////////////////////////
 
-#include <Wire.h>                                            //Include the Wire.h library so we can communicate with the gyro
+#include <Wire.h>                                         //Include the Wire.h library so we can communicate with the gyro
+#include <SPI.h>                                          //the communication interface with the modem
+#include "RF24.h" 
 
 int gyro_address = 0x68;                                     //MPU-6050 I2C address (0x68 or 0x69)
-int acc_calibration_value = -645;                            //Enter the accelerometer calibration value
-
+int acc_calibration_value = -1761;                         //Enter the accelerometer calibration value
+int data[2]; 
 //Various settings
-float pid_p_gain = 10;                                       //Gain setting for the P-controller (15)
-float pid_i_gain = 0;                                      //Gain setting for the I-controller (1.5)
-float pid_d_gain = 0;                                       //Gain setting for the D-controller (30)
+RF24 radio(8,6); 
+float pid_p_gain = 19;                                       //Gain setting for the P-controller (15)
+float pid_i_gain = 0.12;                                      //Gain setting for the I-controller (1.5)
+float pid_d_gain = 40;                                       //Gain setting for the D-controller (30)
 float turning_speed = 30;                                    //Turning speed (20)
 float max_target_speed = 150;                                //Max target speed (100)
 
@@ -40,6 +43,10 @@ unsigned long loop_timer;
 float angle_gyro, angle_acc, angle, self_balance_pid_setpoint;
 float pid_error_temp, pid_i_mem, pid_setpoint, gyro_input, pid_output, pid_last_d_error;
 float pid_output_left, pid_output_right;
+const byte address[6] = "00001";
+
+double xAverage = 0, yAverage = 0;
+int n = 0, x = 0, y = 0;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Setup basic functions
@@ -85,6 +92,10 @@ void setup(){
   pinMode(4, OUTPUT);                                                       //Configure digital poort 5 as output
   pinMode(13, OUTPUT);                                                      //Configure digital poort 6 as output
 
+  radio.begin();                    //it activates the modem
+  radio.openReadingPipe(0, address);   //determines the address of our modem which receive data //promjena pipe-a
+  radio.startListening();            //enable receiving data via modem
+  
   Serial.println("Starting calibration");
   for(receive_counter = 0; receive_counter < 500; receive_counter++){       //Create 500 loops
     // Serial.println("Loop cycle");
@@ -111,10 +122,17 @@ void setup(){
 //Main program loop
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void loop(){
-  if(Serial.available()){                                                   //If there is serial data available
-    received_byte = Serial.read();                                          //Load the received serial data in the received_byte variable
-    receive_counter = 0;                                                    //Reset the receive_counter variable
-  }
+  if (radio.available()) {
+    radio.read(&received_byte, sizeof(received_byte));
+    receive_counter = 0; 
+    Serial.println(received_byte);
+    }
+ 
+//  if(Serial.available()){                                                   //If there is serial data available
+//    received_byte = Serial.read();                                          //Load the received serial data in the received_byte variable
+//    receive_counter = 0;                                                    //Reset the receive_counter variable
+//  }
+
   if(receive_counter <= 25)receive_counter ++;                              //The received byte will be valid for 25 program loops (100 milliseconds)
   else received_byte = 0x00;                                                //After 100 milliseconds the received byte is deleted
   
@@ -190,7 +208,8 @@ void loop(){
   //is calculated. The self_balance_pid_setpoint variable is automatically changed to make sure that the robot stays balanced all the time.
   //The (pid_setpoint - pid_output * 0.015) part functions as a brake function.
   pid_error_temp = angle_gyro - self_balance_pid_setpoint - pid_setpoint;
-  if(pid_output > 10 || pid_output < -10)pid_error_temp += pid_output * 0.015 ;
+  if(pid_output > 10 || pid_output < -10)pid_error_temp += pid_output * 0.022 ; //0.015
+  
 
   pid_i_mem += pid_i_gain * pid_error_temp;                                 //Calculate the I-controller value and add it to the pid_i_mem variable
   if(pid_i_mem > 400)pid_i_mem = 400;                                       //Limit the I-controller to the maximum controller output
@@ -219,27 +238,27 @@ void loop(){
 
   if(received_byte & B00000001){                                            //If the first bit of the receive byte is set change the left and right variable to turn the robot to the left
     pid_output_left += turning_speed;                                       //Increase the left motor speed
-    pid_output_right -= turning_speed;                                      //Decrease the right motor speed
+    pid_output_right -= turning_speed;                                      //Decrease the right motor speed //desno
   }
   if(received_byte & B00000010){                                            //If the second bit of the receive byte is set change the left and right variable to turn the robot to the right
     pid_output_left -= turning_speed;                                       //Decrease the left motor speed
-    pid_output_right += turning_speed;                                      //Increase the right motor speed
+    pid_output_right += turning_speed;                                      //Increase the right motor speed //lijevo
   }
 
   if(received_byte & B00000100){                                            //If the third bit of the receive byte is set change the left and right variable to turn the robot to the right
     if(pid_setpoint > -2.5)pid_setpoint -= 0.05;                            //Slowly change the setpoint angle so the robot starts leaning forewards
-    if(pid_output > max_target_speed * -1)pid_setpoint -= 0.005;            //Slowly change the setpoint angle so the robot starts leaning forewards
+    if(pid_output > max_target_speed * -1)pid_setpoint -= 0.005;            //Slowly change the setpoint angle so the robot starts leaning forewards //naprijed
   }
   if(received_byte & B00001000){                                            //If the forth bit of the receive byte is set change the left and right variable to turn the robot to the right
     if(pid_setpoint < 2.5)pid_setpoint += 0.05;                             //Slowly change the setpoint angle so the robot starts leaning backwards
-    if(pid_output < max_target_speed)pid_setpoint += 0.005;                 //Slowly change the setpoint angle so the robot starts leaning backwards
+    if(pid_output < max_target_speed)pid_setpoint += 0.005;                 //Slowly change the setpoint angle so the robot starts leaning backwards //nazad
   }   
 
-  // if(!(received_byte & B00001100)){                                         //Slowly reduce the setpoint to zero if no foreward or backward command is given
+   if(!(received_byte & B00001100)){                                         //Slowly reduce the setpoint to zero if no foreward or backward command is given
     if(pid_setpoint > 0.5)pid_setpoint -=0.05;                              //If the PID setpoint is larger then 0.5 reduce the setpoint with 0.05 every loop
     else if(pid_setpoint < -0.5)pid_setpoint +=0.05;                        //If the PID setpoint is smaller then -0.5 increase the setpoint with 0.05 every loop
     else pid_setpoint = 0;                                                  //If the PID setpoint is smaller then 0.5 or larger then -0.5 set the setpoint to 0
-  // }
+   }
   
   //The self balancing point is adjusted when there is not forward or backwards movement from the transmitter. This way the robot will always find it's balancing point
   if(pid_setpoint == 0){                                                    //If the setpoint is zero degrees
@@ -279,7 +298,7 @@ void loop(){
   throttle_left_motor = left_motor;
   throttle_right_motor = right_motor;
 
-  Serial.println(angle_gyro);
+  // Serial.println(angle_gyro);
   // Serial.println(throttle_counter_left_motor);
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
